@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from utils.config import BOT_TOKEN, ADMIN_ID, DEFAULT_TITLE, DEFAULT_DESCRIPTION, get_channels, OVERLAY_POSITION
+from utils.config import BOT_TOKEN, ADMIN_IDS, DEFAULT_TITLE, DEFAULT_DESCRIPTION, get_channels, OVERLAY_POSITION
 from core.db_manager import DBManager
 from core.video_handler import VideoProcessor
 
@@ -14,9 +14,9 @@ from core.video_handler import VideoProcessor
 dp = Dispatcher()
 db = DBManager()
 
-# Middleware для проверки ADMIN_ID
+# Middleware для проверки ADMIN_IDS
 async def admin_check_middleware(handler, event, data):
-    if event.from_user.id != ADMIN_ID:
+    if event.from_user.id not in ADMIN_IDS:
         await event.answer("⛔️ У вас нет доступа к этому боту.")
         return
     return await handler(event, data)

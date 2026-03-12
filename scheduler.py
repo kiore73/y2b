@@ -3,11 +3,11 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from core.db_manager import DBManager
 from core.youtube_client import YouTubeClient
-from utils.config import UPLOAD_INTERVAL_HOURS, ADMIN_ID
+from utils.config import UPLOAD_INTERVAL_HOURS, ADMIN_IDS
 from aiogram import Bot
 
 # Инициализация для уведомлений
-from utils.config import BOT_TOKEN, ADMIN_ID, UPLOAD_INTERVAL_HOURS, ARCHIVE_DIR
+from utils.config import BOT_TOKEN, ADMIN_IDS, UPLOAD_INTERVAL_HOURS, ARCHIVE_DIR
 bot = Bot(token=BOT_TOKEN)
 db = DBManager()
 
@@ -50,16 +50,28 @@ async def upload_job():
                 except Exception as e:
                     logging.warning(f"Не удалось переместить файл в архив: {e}")
 
-                await bot.send_message(ADMIN_ID, f"✅ Видео '{next_video['title']}' успешно загружено на {channel_name}!\nID: {video_id}")
+                for admin_id in ADMIN_IDS:
+                    try:
+                        await bot.send_message(admin_id, f"✅ Видео '{next_video['title']}' успешно загружено на {channel_name}!\nID: {video_id}")
+                    except Exception as e:
+                        logging.warning(f"Не удалось отправить уведомление админу {admin_id}: {e}")
                 
             except Exception as e:
                 logging.error(f"Ошибка при загрузке на {channel_name}: {e}")
                 db.update_status(next_video['id'], 'error', str(e))
-                await bot.send_message(ADMIN_ID, f"❌ Ошибка загрузки на {channel_name}: {e}")
+                for admin_id in ADMIN_IDS:
+                    try:
+                        await bot.send_message(admin_id, f"❌ Ошибка загрузки на {channel_name}: {e}")
+                    except Exception as e:
+                        logging.warning(f"Не удалось отправить уведомление об ошибке админу {admin_id}: {e}")
         
         # Проверка остатка в очереди
         if stats[channel_name] <= 1:
-            await bot.send_message(ADMIN_ID, f"⚠️ Предупреждение: Очередь для {channel_name} почти пуста!")
+            for admin_id in ADMIN_IDS:
+                try:
+                    await bot.send_message(admin_id, f"⚠️ Предупреждение: Очередь для {channel_name} почти пуста!")
+                except Exception as e:
+                    logging.warning(f"Не удалось отправить предупреждение админу {admin_id}: {e}")
 
 async def main():
     logging.basicConfig(

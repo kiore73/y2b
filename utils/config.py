@@ -4,7 +4,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID", 0))
+# Парсим список ID администраторов через запятую
+admin_ids_raw = os.getenv("ADMIN_ID", "0")
+ADMIN_IDS = [int(i.strip()) for i in admin_ids_raw.split(",") if i.strip().isdigit()]
 
 FFMPEG_PATH = os.getenv("FFMPEG_PATH", "ffmpeg")
 FFPROBE_PATH = os.getenv("FFPROBE_PATH", "ffprobe")
