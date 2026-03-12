@@ -4,11 +4,14 @@ import subprocess
 import logging
 from utils.config import FFMPEG_PATH, FFPROBE_PATH, OVERLAY_PATH, VIDEOS_DIR
 
+import sys
+
 class VideoProcessor:
     @staticmethod
     async def download_tiktok(url: str, output_name: str):
         file_path = os.path.join(VIDEOS_DIR, f"raw_{output_name}.mp4")
-        cmd = ["yt-dlp", "-f", "bv*+ba/b", "--merge-output-format", "mp4", "-o", file_path, url]
+        # Используем sys.executable -m для надежного запуска в venv
+        cmd = [sys.executable, "-m", "yt_dlp", "-f", "bv*+ba/b", "--merge-output-format", "mp4", "-o", file_path, url]
         process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         stdout, stderr = await process.communicate()
         if process.returncode != 0:
