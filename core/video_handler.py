@@ -2,9 +2,24 @@ import os
 import asyncio
 import subprocess
 import logging
+import shutil
 from utils.config import FFMPEG_PATH, FFPROBE_PATH, OVERLAY_PATH, VIDEOS_DIR, PROXY
 
 import sys
+
+def get_executable_path(env_path, default_cmd):
+    """Проверяет путь из .env, и если он не валиден, ищет в системе."""
+    if env_path and os.path.exists(env_path):
+        return env_path
+    # Поиск в системном PATH
+    system_path = shutil.which(default_cmd)
+    if system_path:
+        return system_path
+    return default_cmd # Возвращаем имя команды как есть, вдруг сработает
+
+# Итоговые пути
+ACTUAL_FFMPEG = get_executable_path(FFMPEG_PATH, "ffmpeg")
+ACTUAL_FFPROBE = get_executable_path(FFPROBE_PATH, "ffprobe")
 
 class VideoProcessor:
     @staticmethod
@@ -37,7 +52,7 @@ class VideoProcessor:
 
     @staticmethod
     def _get_resolution(video_path):
-        cmd = [FFPROBE_PATH, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", video_path]
+        cmd = [ACTUAL_FFPROBE, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", video_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise Exception(f"Ошибка ffprobe: {result.stderr}")
@@ -68,7 +83,7 @@ class VideoProcessor:
                               f"[0:v][ol]overlay={x_offset}:{y_offset}:shortest=1")
 
             cmd = [
-                FFMPEG_PATH, "-y", "-i", input_path, "-i", OVERLAY_PATH,
+                ACTUAL_FFMPEG, "-y", "-i", input_path, "-i", OVERLAY_PATH,
                 "-filter_complex", overlay_filter,
                 "-c:v", "libx264", "-preset", "fast", "-crf", "23",
                 "-c:a", "aac", "-b:a", "128k", output_path
