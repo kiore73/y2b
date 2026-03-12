@@ -1,0 +1,16 @@
+{
+  "channels": [
+    {
+      "name": "Channel_1",
+      "video_dir": "videos/channel_1",
+      "archive_dir": "archive/channel_1",
+      "upload_interval_hours": 3,
+      "default_tags": ["shorts", "trending"],
+      "default_description": "Подписывайтесь на канал! #shorts"
+    }
+  ],
+  "client_secrets_file": "client_secrets.json",
+  "token_dir": "tokens",
+  "log_file": "app.log",
+  "database_file": "uploads.db"
+}

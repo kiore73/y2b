@@ -1,0 +1,20 @@
+# Секреты и токены
+.env
+client_secrets.json
+data/tokens/
+*_token.pickle
+
+# База данных и временные файлы
+data/*.db
+data/videos/
+app.log
+
+# Python
+__pycache__/
+*.pyc
+
+# Видео и оверлеи
+assets/*.mov
+assets/*.mp4
+videos/
+archive/
