@@ -53,12 +53,6 @@ class DBManager:
                 SELECT * FROM video_queue 
                 WHERE channel_name = ? AND status = 'pending' 
                 ORDER BY created_at ASC LIMIT 1
-            """) # Ошибка была тут: пропущен параметр
-            # Исправляю сразу
-            cursor.execute("""
-                SELECT * FROM video_queue 
-                WHERE channel_name = ? AND status = 'pending' 
-                ORDER BY created_at ASC LIMIT 1
             """, (channel_name,))
             return cursor.fetchone()
 
