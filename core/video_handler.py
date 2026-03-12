@@ -2,7 +2,7 @@ import os
 import asyncio
 import subprocess
 import logging
-from utils.config import FFMPEG_PATH, FFPROBE_PATH, OVERLAY_PATH, VIDEOS_DIR
+from utils.config import FFMPEG_PATH, FFPROBE_PATH, OVERLAY_PATH, VIDEOS_DIR, PROXY
 
 import sys
 
@@ -11,7 +11,24 @@ class VideoProcessor:
     async def download_tiktok(url: str, output_name: str):
         file_path = os.path.join(VIDEOS_DIR, f"raw_{output_name}.mp4")
         # Используем sys.executable -m для надежного запуска в venv
-        cmd = [sys.executable, "-m", "yt_dlp", "-f", "bv*+ba/b", "--merge-output-format", "mp4", "-o", file_path, url]
+        cmd = [
+            sys.executable, "-m", "yt_dlp", 
+            "-f", "bv*+ba/b", "--merge-output-format", "mp4", 
+            "-o", file_path, 
+            "--no-check-certificate", "--no-warnings"
+        ]
+        
+        # Добавляем прокси, если он указан в .env
+        if PROXY:
+            cmd.extend(["--proxy", PROXY])
+            
+        # Если в папке data лежит cookies.txt, используем его для обхода блокировок
+        cookies_path = "data/cookies.txt"
+        if os.path.exists(cookies_path):
+            cmd.extend(["--cookies", cookies_path])
+            
+        cmd.append(url)
+        
         process = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         stdout, stderr = await process.communicate()
         if process.returncode != 0:

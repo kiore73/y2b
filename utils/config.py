@@ -12,6 +12,7 @@ OVERLAY_PATH = os.getenv("OVERLAY_PATH")
 
 DEFAULT_TITLE = os.getenv("DEFAULT_TITLE", "Shorts #shorts")
 DEFAULT_DESCRIPTION = os.getenv("DEFAULT_DESCRIPTION", "")
+PROXY = os.getenv("PROXY") # socks5://user:pass@ip:port or http://...
 
 UPLOAD_INTERVAL_HOURS = int(os.getenv("UPLOAD_INTERVAL_HOURS", 3))
 
