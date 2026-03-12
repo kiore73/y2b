@@ -79,8 +79,9 @@ async def handle_video_input(message: types.Message, state: FSMContext, bot: Bot
         await state.set_state(UploadStates.waiting_for_metadata)
         
     except Exception as e:
+        error_msg = str(e)[:1000]
         logging.error(f"Error handling video: {e}", exc_info=True)
-        await msg.edit_text(f"❌ Произошла ошибка: {e}")
+        await msg.edit_text(f"❌ Произошла ошибка: {error_msg}")
 
 @dp.callback_query(F.data == "use_default")
 async def use_default_metadata(callback: types.CallbackQuery, state: FSMContext):

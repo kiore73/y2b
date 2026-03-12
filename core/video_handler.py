@@ -74,32 +74,30 @@ class VideoProcessor:
             # Ограничиваем количество потоков для уменьшения потребления памяти
             threads = "1" 
             
+            # Оптимизация для слабого VPS (обязательно 1 поток)
+            threads = "1"
+            
             loop = asyncio.get_running_loop()
             width, height = await loop.run_in_executor(None, VideoProcessor._get_resolution, input_path)
             
-            # Масштабируем overlay пропорционально видео (параметры от пользователя)
+            # Параметры от пользователя
             overlay_width = int(width * 1.75)
             overlay_height = int(overlay_width * 0.50)
             x_offset = int((width - overlay_width) / 1.7)
-            
-            # Корректировка y_offset для высокой позиции
-            if position == "top":
-                y_offset = -100
-            else:
-                y_offset = height - overlay_height + 100
+            y_offset = -100 if position == "top" else height - overlay_height + 100
 
-            # FFmpeg фильтр: масштабируем overlay и повторяем на всю длину
+            # Используем -stream_loop на входе вместо loop в фильтре — это экономит сотни мегабайт RAM
             overlay_filter = (
-                f"[1:v]scale={overlay_width}:{overlay_height},"
-                f"loop=-1:size=250:start=0,setpts=N/FRAME_RATE/TB[ol];"
+                f"[1:v]scale={overlay_width}:{overlay_height}[ol];"
                 f"[0:v][ol]overlay={x_offset}:{y_offset}:shortest=1"
             )
 
             cmd = [
                 ACTUAL_FFMPEG, "-y", "-threads", threads,
-                "-i", input_path, "-i", OVERLAY_PATH,
+                "-i", input_path,
+                "-stream_loop", "-1", "-i", OVERLAY_PATH, # Зацикливаем файл, а не кадры в памяти
                 "-filter_complex", overlay_filter,
-                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28", # Максимальная экономия ресурсов
                 "-c:a", "aac", "-b:a", "128k", output_path
             ]
 
