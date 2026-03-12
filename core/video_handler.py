@@ -77,26 +77,29 @@ class VideoProcessor:
             loop = asyncio.get_running_loop()
             width, height = await loop.run_in_executor(None, VideoProcessor._get_resolution, input_path)
             
-            # Настройки оверлея: делаем его чуть компактнее и выше
-            overlay_width = int(width * 1.5) # 1.5x ширины видео для вылета за края
-            overlay_height = int(height * 0.25) # Ограничиваем высоту 25% от экрана
-            x_offset = int((width - overlay_width) / 2)
+            # Масштабируем overlay пропорционально видео (параметры от пользователя)
+            overlay_width = int(width * 1.75)
+            overlay_height = int(overlay_width * 0.50)
+            x_offset = int((width - overlay_width) / 1.7)
             
-            # Позиция: 15% от верха для "top", или 75% для "bottom"
+            # Корректировка y_offset для высокой позиции
             if position == "top":
-                y_offset = int(height * 0.15)
+                y_offset = -100
             else:
-                y_offset = int(height * 0.75)
+                y_offset = height - overlay_height + 100
 
-            # Оптимизированный фильтр
-            overlay_filter = (f"[1:v]scale={overlay_width}:{overlay_height}[ol_scaled];"
-                              f"[0:v][ol_scaled]overlay={x_offset}:{y_offset}:shortest=1")
+            # FFmpeg фильтр: масштабируем overlay и повторяем на всю длину
+            overlay_filter = (
+                f"[1:v]scale={overlay_width}:{overlay_height},"
+                f"loop=-1:size=250:start=0,setpts=N/FRAME_RATE/TB[ol];"
+                f"[0:v][ol]overlay={x_offset}:{y_offset}:shortest=1"
+            )
 
             cmd = [
                 ACTUAL_FFMPEG, "-y", "-threads", threads,
-                "-i", input_path, "-stream_loop", "-1", "-i", OVERLAY_PATH,
+                "-i", input_path, "-i", OVERLAY_PATH,
                 "-filter_complex", overlay_filter,
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", # crf 28 легче для CPU/RAM
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
                 "-c:a", "aac", "-b:a", "128k", output_path
             ]
 
