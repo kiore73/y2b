@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from utils.config import BOT_TOKEN, ADMIN_ID, DEFAULT_TITLE, DEFAULT_DESCRIPTION
+from utils.config import BOT_TOKEN, ADMIN_ID, DEFAULT_TITLE, DEFAULT_DESCRIPTION, get_channels, OVERLAY_POSITION
 from core.db_manager import DBManager
 from core.video_handler import VideoProcessor
 
@@ -15,13 +15,43 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = DBManager()
 
+# Middleware для проверки ADMIN_ID
+@dp.message.outer_middleware()
+async def admin_check_middleware(handler, event, data):
+    if event.from_user.id != ADMIN_ID:
+        await event.answer("⛔️ У вас нет доступа к этому боту.")
+        return
+    return await handler(event, data)
+
 class UploadStates(StatesGroup):
     waiting_for_metadata = State()
     choosing_channel = State()
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
-    await message.answer("Привет! Отправь мне ссылку на TikTok или видеофайл, и я подготовлю его для YouTube Shorts.")
+    await message.answer(
+        "🚀 **YouTube Shorts Automation Bot**\n\n"
+        "Отправь мне ссылку на TikTok или видеофайл.\n"
+        "Команды:\n"
+        "/queue — Посмотреть очередь\n"
+        "/clear — Очистить очередь"
+    )
+
+@dp.message(Command("queue"))
+async def cmd_queue(message: types.Message):
+    queue = db.get_full_queue()
+    if not queue:
+        return await message.answer("📭 Очередь пуста.")
+    
+    text = "📂 **Текущая очередь:**\n\n"
+    for item in queue:
+        text += f"🔹 {item['id']}: {item['title']} ({item['channel_name']})\n"
+    await message.answer(text)
+
+@dp.message(Command("clear"))
+async def cmd_clear(message: types.Message):
+    count = db.clear_queue()
+    await message.answer(f"🗑 Очередь очищена. Удалено задач: {count}")
 
 @dp.message(F.text.startswith("http"))
 @dp.message(F.video)
@@ -36,8 +66,7 @@ async def handle_video_input(message: types.Message, state: FSMContext):
             raw_path = f"data/videos/raw_{message.message_id}.mp4"
             await bot.download(video, destination=raw_path)
 
-        final_path = await VideoProcessor.apply_overlay(raw_path, f"final_{message.message_id}")
-        
+        final_path = await VideoProcessor.apply_overlay(raw_path, f"final_{message.message_id}", position=OVERLAY_POSITION)
         await state.update_data(file_path=final_path)
         
         kb = InlineKeyboardMarkup(inline_keyboard=[[
@@ -48,7 +77,7 @@ async def handle_video_input(message: types.Message, state: FSMContext):
         await state.set_state(UploadStates.waiting_for_metadata)
         
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logging.error(f"Error handling video: {e}", exc_info=True)
         await msg.edit_text(f"❌ Произошла ошибка: {e}")
 
 @dp.callback_query(F.data == "use_default")
@@ -68,8 +97,7 @@ async def process_metadata(message: types.Message, state: FSMContext):
     await show_channel_selection(message, state)
 
 async def show_channel_selection(message: types.Message, state: FSMContext):
-    # Тут можно загружать каналы из конфига, для примера сделаем 3
-    channels = ["Channel_1", "Channel_2", "Channel_3"]
+    channels = get_channels()
     buttons = [[InlineKeyboardButton(text=c, callback_data=f"channel_{c}")] for c in channels]
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
     
@@ -88,13 +116,20 @@ async def finalize_upload(callback: types.CallbackQuery, state: FSMContext):
         channel_name=channel_name
     )
     
-    await callback.message.edit_text(f"✅ Видео добавлено в очередь для канала **{channel_name}**! Оно будет загружено при следующей проверке планировщика.")
+    await callback.message.edit_text(f"✅ Видео добавлено в очередь для канала **{channel_name}**!")
     await state.clear()
     await callback.answer()
 
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[logging.FileHandler("app.log"), logging.StreamHandler()]
+    )
     await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -53,6 +53,12 @@ class DBManager:
                 SELECT * FROM video_queue 
                 WHERE channel_name = ? AND status = 'pending' 
                 ORDER BY created_at ASC LIMIT 1
+            """) # Ошибка была тут: пропущен параметр
+            # Исправляю сразу
+            cursor.execute("""
+                SELECT * FROM video_queue 
+                WHERE channel_name = ? AND status = 'pending' 
+                ORDER BY created_at ASC LIMIT 1
             """, (channel_name,))
             return cursor.fetchone()
 
@@ -76,3 +82,23 @@ class DBManager:
                 GROUP BY channel_name
             """)
             return dict(cursor.fetchall())
+
+    def get_full_queue(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, channel_name, status FROM video_queue 
+                WHERE status = 'pending' ORDER BY created_at ASC
+            """)
+            return [dict(row) for row in cursor.fetchall()]
+
+    def clear_queue(self, channel_name=None):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            if channel_name:
+                cursor.execute("DELETE FROM video_queue WHERE channel_name = ? AND status = 'pending'", (channel_name,))
+            else:
+                cursor.execute("DELETE FROM video_queue WHERE status = 'pending'")
+            conn.commit()
+            return cursor.rowcount
