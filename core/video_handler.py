@@ -77,14 +77,18 @@ class VideoProcessor:
             loop = asyncio.get_running_loop()
             width, height = await loop.run_in_executor(None, VideoProcessor._get_resolution, input_path)
             
-            # Настройки оверлея
-            overlay_width = int(width * 1.75)
-            overlay_height = int(overlay_width * 0.50)
-            x_offset = int((width - overlay_width) / 1.7)
-            y_offset = -100 if position == "top" else height - overlay_height + 100
+            # Настройки оверлея: делаем его чуть компактнее и выше
+            overlay_width = int(width * 1.5) # 1.5x ширины видео для вылета за края
+            overlay_height = int(height * 0.25) # Ограничиваем высоту 25% от экрана
+            x_offset = int((width - overlay_width) / 2)
+            
+            # Позиция: 15% от верха для "top", или 75% для "bottom"
+            if position == "top":
+                y_offset = int(height * 0.15)
+            else:
+                y_offset = int(height * 0.75)
 
-            # Оптимизированный фильтр: масштабируем оверлей один раз и ограничиваем зацикливание
-            # loop=-1 может потреблять много памяти, если файл большой
+            # Оптимизированный фильтр
             overlay_filter = (f"[1:v]scale={overlay_width}:{overlay_height}[ol_scaled];"
                               f"[0:v][ol_scaled]overlay={x_offset}:{y_offset}:shortest=1")
 
