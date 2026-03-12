@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from apscheduler.schedulers.asyncio import AsyncioScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from core.db_manager import DBManager
 from core.youtube_client import YouTubeClient
 from utils.config import UPLOAD_INTERVAL_HOURS, ADMIN_ID
@@ -67,7 +67,7 @@ async def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[logging.FileHandler("app.log"), logging.StreamHandler()]
     )
-    scheduler = AsyncioScheduler()
+    scheduler = AsyncIOScheduler()
     # Запуск раз в 3 часа. Можно изменить для теста на раз в минуту (minutes=1)
     scheduler.add_job(upload_job, 'interval', hours=UPLOAD_INTERVAL_HOURS)
     scheduler.start()
