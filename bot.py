@@ -10,13 +10,11 @@ from utils.config import BOT_TOKEN, ADMIN_ID, DEFAULT_TITLE, DEFAULT_DESCRIPTION
 from core.db_manager import DBManager
 from core.video_handler import VideoProcessor
 
-# Инициализация
-bot = Bot(token=BOT_TOKEN)
+# Инициализация (перенесено в main для стабильности)
 dp = Dispatcher()
 db = DBManager()
 
 # Middleware для проверки ADMIN_ID
-@dp.message.outer_middleware()
 async def admin_check_middleware(handler, event, data):
     if event.from_user.id != ADMIN_ID:
         await event.answer("⛔️ У вас нет доступа к этому боту.")
@@ -26,6 +24,10 @@ async def admin_check_middleware(handler, event, data):
 class UploadStates(StatesGroup):
     waiting_for_metadata = State()
     choosing_channel = State()
+
+# Мы будем передавать bot через контекст или использовать глобальную переменную осторожно
+# Но лучше инициализировать в main
+bot_instance: Bot = None
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -55,7 +57,7 @@ async def cmd_clear(message: types.Message):
 
 @dp.message(F.text.startswith("http"))
 @dp.message(F.video)
-async def handle_video_input(message: types.Message, state: FSMContext):
+async def handle_video_input(message: types.Message, state: FSMContext, bot: Bot):
     msg = await message.answer("🎬 Начинаю обработку видео...")
     
     try:
@@ -88,11 +90,12 @@ async def use_default_metadata(callback: types.CallbackQuery, state: FSMContext)
 
 @dp.message(UploadStates.waiting_for_metadata)
 async def process_metadata(message: types.Message, state: FSMContext):
-    if "|" in message.text:
+    if message.text and "|" in message.text:
         title, desc = message.text.split("|", 1)
         await state.update_data(title=title.strip(), description=desc.strip())
     else:
-        await state.update_data(title=message.text.strip(), description=DEFAULT_DESCRIPTION)
+        text = message.text.strip() if message.text else DEFAULT_TITLE
+        await state.update_data(title=text, description=DEFAULT_DESCRIPTION)
     
     await show_channel_selection(message, state)
 
@@ -126,10 +129,15 @@ async def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[logging.FileHandler("app.log"), logging.StreamHandler()]
     )
+    
+    bot = Bot(token=BOT_TOKEN)
+    dp.message.outer_middleware(admin_check_middleware)
+    
+    logging.info("Starting bot...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Bot stopped")

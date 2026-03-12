@@ -70,22 +70,29 @@ class VideoProcessor:
                 os.rename(input_path, output_path)
                 return output_path
 
-            loop = asyncio.get_event_loop()
+            # Оптимизация для слабого VPS
+            # Ограничиваем количество потоков для уменьшения потребления памяти
+            threads = "1" 
+            
+            loop = asyncio.get_running_loop()
             width, height = await loop.run_in_executor(None, VideoProcessor._get_resolution, input_path)
             
-            # Настройки оверлея (можно вынести в .env)
+            # Настройки оверлея
             overlay_width = int(width * 1.75)
             overlay_height = int(overlay_width * 0.50)
             x_offset = int((width - overlay_width) / 1.7)
             y_offset = -100 if position == "top" else height - overlay_height + 100
 
-            overlay_filter = (f"[1:v]scale={overlay_width}:{overlay_height},loop=-1:size=250:start=0,setpts=N/FRAME_RATE/TB[ol];"
-                              f"[0:v][ol]overlay={x_offset}:{y_offset}:shortest=1")
+            # Оптимизированный фильтр: масштабируем оверлей один раз и ограничиваем зацикливание
+            # loop=-1 может потреблять много памяти, если файл большой
+            overlay_filter = (f"[1:v]scale={overlay_width}:{overlay_height}[ol_scaled];"
+                              f"[0:v][ol_scaled]overlay={x_offset}:{y_offset}:shortest=1")
 
             cmd = [
-                ACTUAL_FFMPEG, "-y", "-i", input_path, "-i", OVERLAY_PATH,
+                ACTUAL_FFMPEG, "-y", "-threads", threads,
+                "-i", input_path, "-stream_loop", "-1", "-i", OVERLAY_PATH,
                 "-filter_complex", overlay_filter,
-                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", # crf 28 легче для CPU/RAM
                 "-c:a", "aac", "-b:a", "128k", output_path
             ]
 
